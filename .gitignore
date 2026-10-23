@@ -1,0 +1,24 @@
+# Eseguibile compilato (make render3d)
+render3d
+*.o
+*.dSYM/
+
+# File generati (make run / python3 astro.py)
+orbit3d.txt
+render3d.html
+
+# Cache TLE scaricata da Celestrak
+tle_*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
