@@ -21,6 +21,7 @@ ORBIT_OUT = BASE / "orbit3d.txt"
 KSC = (28.524058, -80.65085, 0.0)
 F0 = 145.800e6
 C = 299792458.
+PUNTI_CARDINALI = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
 
 
 def load_tle():
@@ -52,11 +53,14 @@ tle = load_tle()
 print("TLE: {} (epoca {:%Y-%m-%d %H:%M} UTC)".format(tle.name, tle.epoch.datetime))
 
 station = create_station('KSC', KSC)
+riferimento = "{} ({:.2f}°{}, {:.2f}°{})".format(
+    station.name, abs(KSC[0]), 'N' if KSC[0] >= 0 else 'S', abs(KSC[1]), 'E' if KSC[1] >= 0 else 'O')
 
 start = Date.now()
 
 azims, elevs = [], []
 dates, dopplers = [], []
+pass_events = {}
 
 for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), step=timedelta(seconds=10), events=RadialVelocityListener(station, sight=True)):
     azim = -np.degrees(orb.theta) % 360
@@ -74,8 +78,22 @@ for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), 
         tle=tle, event=orb.event.info if orb.event is not None else ""
     ))
 
+    if orb.event is not None:
+        pass_events.setdefault(orb.event.info, (orb.date, azim, elev))
+
     if orb.event and orb.event.info == "LOS":
         break
+
+if "MAX" in pass_events and "LOS" in pass_events:
+    aos_date = pass_events["AOS"][0] if "AOS" in pass_events else start
+    max_date, max_azim, max_elev = pass_events["MAX"]
+    los_date = pass_events["LOS"][0]
+    direzione = PUNTI_CARDINALI[int((max_azim + 22.5) // 45) % 8]
+    durata = (los_date - aos_date).total_seconds() / 60
+    print("Prossimo passaggio visibile da {}: {:%H:%M} UTC  max {:.0f}° a {}  durata {:.0f} min".format(
+        riferimento, aos_date.datetime, max_elev, direzione, durata))
+else:
+    print("Nessun passaggio visibile da {} nelle prossime 24 ore".format(riferimento))
 
 orb = tle.orbit()
 
