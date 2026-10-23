@@ -7,6 +7,7 @@ import numpy as np
 from beyond.io.tle import Tle
 from beyond.frames import create_station
 from beyond.dates import Date, timedelta
+from beyond.propagators.listeners import RadialVelocityListener
 
 R_TERRA = 6378.137
 
@@ -18,6 +19,8 @@ TLE_MAX_AGE = 6 * 3600
 IMG = BASE / "images" / "terra2.jpg"
 ORBIT_OUT = BASE / "orbit3d.txt"
 KSC = (28.524058, -80.65085, 0.0)
+F0 = 145.800e6
+C = 299792458.
 
 
 def load_tle():
@@ -53,17 +56,21 @@ station = create_station('KSC', KSC)
 start = Date.now()
 
 azims, elevs = [], []
+dates, dopplers = [], []
 
-for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), step=timedelta(minutes=2), events=True):
+for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), step=timedelta(seconds=10), events=RadialVelocityListener(station, sight=True)):
     azim = -np.degrees(orb.theta) % 360
     elev = np.degrees(orb.phi)
     r = orb.r / 1000.
+    doppler = -F0 * orb.r_dot / C
 
     azims.append(azim)
     elevs.append(elev)
+    dates.append(orb.date.datetime)
+    dopplers.append(doppler)
 
-    print("{event:10} {tle.name}  {date:%Y-%m-%dT%H:%M:%S.%f} {azim:7.2f} {elev:7.2f} {r:10.2f}".format(
-        date=orb.date, r=r, azim=azim, elev=elev,
+    print("{event:15} {tle.name}  {date:%Y-%m-%dT%H:%M:%S.%f} {azim:7.2f} {elev:7.2f} {r:10.2f} {doppler:+9.1f}".format(
+        date=orb.date, r=r, azim=azim, elev=elev, doppler=doppler,
         tle=tle, event=orb.event.info if orb.event is not None else ""
     ))
 
@@ -145,5 +152,13 @@ plt.plot(np.radians(azims), 90 - np.array(elevs), '.')
 ax.set_yticks(range(0, 90, 20))
 ax.set_yticklabels(map(str, range(90, 0, -20)))
 ax.set_rmax(90)
+
+plt.figure()
+plt.plot(dates, np.array(dopplers) / 1000.)
+plt.axhline(0, color='k', linewidth=0.5)
+plt.xlabel("UTC")
+plt.ylabel("Doppler a {:.3f} MHz [kHz]".format(F0 / 1e6))
+plt.grid(True, linestyle=':')
+plt.gcf().autofmt_xdate()
 
 plt.show()
