@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="images/logosat.png" alt="TSAT - Satellite Tracker" width="380">
+  <img src="images/log.png" alt="T-SAT" width="380">
 </p>
 
 
-# TSAT
+# T-SAT
 
 Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il lavoro è diviso in due parti:
 
@@ -11,7 +11,10 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 - **C++ (`render3d.cpp`)**: si occupa solo della visualizzazione 3D.
 
 <p align="center">
-  <img src="images/screenshot.png" alt="Render 3D: la Terra con l'orbita della ISS, la posizione attuale del satellite in rosso e KSC in giallo" width="800">
+  <img src="images/screen.png" alt="Render 3D: la Terra con l'orbita della ISS, la posizione attuale del satellite in rosso e KSC in giallo" width="600">
+</p>
+<p align="center">
+  <img src="images/screen2.png" alt="Porzione Notturna" width="600">
 </p>
 
 <p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
@@ -53,7 +56,7 @@ Nel render 3D l'occlusione dietro la Terra è gestita dal depth buffer della GPU
 
 La direzione del Sole è calcolata all'istante attuale. Uno shader mescola la texture diurna e quella notturna in base al prodotto scalare tra la normale alla superficie e la direzione del Sole, con una sfumatura di circa ±6° attorno al terminatore (crepuscolo). La texture notturna va messa in `images/terra_noc.jpg`, equirettangolare e orientata come `terra2.jpg`. Se il file manca, il lato notte usa la texture diurna scurita.
 
-L'ombra della Terra è un cilindro semitrasparente di raggio R orientato in direzione anti-Sole: per un'orbita bassa l'apertura del cono d'ombra (~0.27°) è trascurabile. L'ombra vale per l'istante attuale. L'orbita è disegnata in ITRF e in un periodo (~92 min) il Sole ruota di circa 23° in quel sistema, quindi i punti di ingresso e uscita dall'ombra lungo il resto dell'orbita sono solo indicativi.
+L'ombra della Terra è un cilindro semitrasparente di raggio R orientato in direzione anti-Sole. L'ombra vale per l'istante attuale. L'orbita è disegnata in ITRF e in un periodo (~92 min) il Sole ruota di circa 23° in quel sistema
 
 ## Curva Doppler
 

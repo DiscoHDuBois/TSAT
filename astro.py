@@ -2,7 +2,9 @@ import time
 import urllib.request
 from pathlib import Path
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 from beyond.io.tle import Tle
 from beyond.frames import create_station
@@ -174,38 +176,67 @@ write_orbit(ORBIT_OUT, tle.name, orbit_pts, sat_pt, ksc_pt, sun_dir)
 print("Scritto {}".format(ORBIT_OUT.name))
 
 im = plt.imread(IMG)
-plt.figure(figsize=(15.2, 8.2))
-plt.imshow(im, extent=[-180, 180, -90, 90])
+fig_map, ax_map = plt.subplots(figsize=(15.2, 8.2))
+ax_map.imshow(im, extent=[-180, 180, -90, 90])
 
 for lons, lats in zip(longitudes, latitudes):
-    plt.plot(lons, lats, 'w', linestyle=':', linewidth=3)
+    ax_map.plot(lons, lats, 'w', linestyle=':', linewidth=3)
 
-plt.plot([lon], [lat], 'ro')
+ax_map.plot([lon], [lat], 'ro')
 
-plt.xlim([-180, 180])
-plt.ylim([-90, 90])
+ax_map.set_xlim([-180, 180])
+ax_map.set_ylim([-90, 90])
 
-plt.grid(True, color='w', linestyle=':', alpha=0.4)
+ax_map.grid(True, color='w', linestyle=':', alpha=0.4)
 
-plt.xticks(range(-180, 181, 30))
-plt.yticks(range(-90, 91, 30))
-plt.tight_layout()
+ax_map.set_xticks(range(-180, 181, 30))
+ax_map.set_yticks(range(-90, 91, 30))
+fig_map.tight_layout()
 
-plt.figure()
-ax = plt.subplot(111, projection='polar')
-ax.set_theta_direction(-1)
-ax.set_theta_zero_location('N')
-plt.plot(np.radians(azims), 90 - np.array(elevs), '.')
-ax.set_yticks(range(0, 90, 20))
-ax.set_yticklabels(map(str, range(90, 0, -20)))
-ax.set_rmax(90)
+fig_pol, ax_pol = plt.subplots(subplot_kw={'projection': 'polar'})
+ax_pol.set_theta_direction(-1)
+ax_pol.set_theta_zero_location('N')
+ax_pol.plot(np.radians(azims), 90 - np.array(elevs), '.')
+ax_pol.set_yticks(range(0, 90, 20))
+ax_pol.set_yticklabels(map(str, range(90, 0, -20)))
+ax_pol.set_rmax(90)
 
-plt.figure()
-plt.plot(dates, np.array(dopplers) / 1000.)
-plt.axhline(0, color='k', linewidth=0.5)
-plt.xlabel("UTC")
-plt.ylabel("Doppler a {:.3f} MHz [kHz]".format(F0 / 1e6))
-plt.grid(True, linestyle=':')
-plt.gcf().autofmt_xdate()
+fig, (ax, ax_el) = plt.subplots(2, 1, sharex=True, figsize=(7, 6), height_ratios=[2, 1])
+t = mdates.date2num(dates)
+d = np.array(dopplers) / 1000.
+# Inserisce lo zero interpolato tra campioni di segno opposto, così le due curve si toccano
+i = np.where(np.sign(d[:-1]) * np.sign(d[1:]) < 0)[0]
+t = np.insert(t, i + 1, t[i] - d[i] * (t[i + 1] - t[i]) / (d[i + 1] - d[i]))
+d = np.insert(d, i + 1, 0.)
+t = mdates.num2date(t)
+for segno, colore, etichetta in [(1, 'tab:blue', "Avvicinamento"), (-1, 'tab:red', "Allontanamento")]:
+    tratto = segno * d >= 0
+    ax.plot(t, np.where(tratto, d, np.nan), color=colore, label=etichetta)
+    ax.fill_between(t, d, 0, where=tratto, color=colore, alpha=0.15, linewidth=0)
+ax.legend(loc='upper right')
+ax.axhline(0, color='k', linewidth=0.5)
+ax.set_ylabel("Doppler a {:.3f} MHz [kHz]".format(F0 / 1e6))
+ax.grid(True, linestyle=':')
+
+titolo = "{}  ·  f0 {:.3f} MHz  ·  {}".format(tle.name.strip(), F0 / 1e6, riferimento)
+if dates:
+    titolo += "\n{:%Y-%m-%d}  ·  elevazione max {:.0f}°".format(dates[0], max(elevs))
+ax.set_title(titolo, fontsize=10)
+
+# Frequenza da sintonizzare in ricezione: f0 + Δf
+f0_mhz = F0 / 1e6
+ax_f = ax.secondary_yaxis('right', functions=(lambda khz: f0_mhz + khz / 1000., lambda mhz: (mhz - f0_mhz) * 1000.))
+ax_f.set_ylabel("Frequenza da sintonizzare [MHz]")
+ax_f.yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
+
+ax_el.plot(dates, elevs, color='k')
+ax_el.axhline(MIN_ELEV, color='gray', linestyle='--', linewidth=1)
+ax_el.axhspan(0, MIN_ELEV, color='gray', alpha=0.15, linewidth=0)
+ax_el.set_ylim(bottom=0)
+ax_el.set_xlabel("UTC")
+ax_el.set_ylabel("Elevazione [°]")
+ax_el.grid(True, linestyle=':')
+fig.autofmt_xdate()
+fig.tight_layout()
 
 plt.show()
