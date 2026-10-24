@@ -8,6 +8,7 @@
 static const double R_TERRA = 6378.137;
 static const std::string ORBIT_IN = "orbit3d.txt";
 static const std::string IMG = "images/terra2.jpg";
+static const std::string IMG_NOTTE = "images/terra_noc.jpg";
 static const std::string OUT = "render3d.html";
 
 struct Vec3 { double x, y, z; };
@@ -29,7 +30,8 @@ static Vec3 parseVec(const std::string& line)
     return v;
 }
 
-static void readOrbit(const std::string& path, std::string& name, Vec3& sat, Vec3& ksc, std::vector<Vec3>& orbit)
+static void readOrbit(const std::string& path, std::string& name, Vec3& sat, Vec3& ksc, Vec3& sun,
+                      std::vector<Vec3>& orbit)
 {
     std::istringstream in(readFile(path));
     std::string line;
@@ -38,6 +40,8 @@ static void readOrbit(const std::string& path, std::string& name, Vec3& sat, Vec
     sat = parseVec(line);
     if (!std::getline(in, line)) throw std::runtime_error(path + " incompleto");
     ksc = parseVec(line);
+    if (!std::getline(in, line)) throw std::runtime_error(path + " incompleto");
+    sun = parseVec(line);
     while (std::getline(in, line))
         if (line.find_first_not_of(" \t\r") != std::string::npos) orbit.push_back(parseVec(line));
     if (orbit.empty()) throw std::runtime_error(path + " non contiene punti dell'orbita");
@@ -65,8 +69,8 @@ static std::ostream& operator<<(std::ostream& f, const Vec3& v)
     return f << '[' << v.x << ',' << v.y << ',' << v.z << ']';
 }
 
-static void writeRender3D(const std::string& path, const std::string& img, const std::string& name,
-                          const std::vector<Vec3>& orbit, Vec3 sat, Vec3 ksc)
+static void writeRender3D(const std::string& path, const std::string& img, const std::string& imgNotte,
+                          const std::string& name, const std::vector<Vec3>& orbit, Vec3 sat, Vec3 ksc, Vec3 sun)
 {
     std::ofstream f(path);
     f.setf(std::ios::fixed);
@@ -88,6 +92,7 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 <div><span>&middot;&middot;&middot;</span>Orbita (1 periodo)</div>
 <div><span style='color:red'>&#9679;</span>)" << name << R"(</div>
 <div><span style='color:yellow'>&#9679;</span>KSC</div>
+<div><span style='color:#4466aa'>&#9608;</span>Ombra della Terra</div>
 </div>
 <div id='hint'>Trascina -> ruotare, Rotella -> zoom</div>
 <script type='module'>
@@ -99,9 +104,14 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 const R = )" << R_TERRA << ";\nconst orbit = [";
     for (size_t i = 0; i < orbit.size(); ++i) f << (i ? "," : "") << orbit[i];
-    f << "];\nconst sat = " << sat << ", ksc = " << ksc << ";\n"
-      << "const tex = 'data:image/jpeg;base64," << base64(readFile(img)) << "';\n"
-      << R"(
+    f << "];\nconst sat = " << sat << ", ksc = " << ksc << ";\n";
+    f.precision(6);
+    f << "const sunDir = new THREE.Vector3(..." << sun << ").normalize();\n";
+    f.precision(3);
+    f << "const tex = 'data:image/jpeg;base64," << base64(readFile(img)) << "';\n";
+    if (imgNotte.empty()) f << "const texNotte = null;\n";
+    else f << "const texNotte = 'data:image/jpeg;base64," << base64(readFile(imgNotte)) << "';\n";
+    f << R"(
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(devicePixelRatio);
 renderer.setSize(innerWidth, innerHeight);
@@ -129,10 +139,42 @@ const earthGeo = new THREE.BufferGeometry();
 earthGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
 earthGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
 earthGeo.setIndex(idx);
-const map = new THREE.TextureLoader().load(tex);
-map.colorSpace = THREE.SRGBColorSpace;
-map.anisotropy = renderer.capabilities.getMaxAnisotropy();
-scene.add(new THREE.Mesh(earthGeo, new THREE.MeshBasicMaterial({ map })));
+function loadTex(src) {
+    const t = new THREE.TextureLoader().load(src);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+}
+const dayMap = loadTex(tex);
+scene.add(new THREE.Mesh(earthGeo, new THREE.ShaderMaterial({
+    uniforms: {
+        dayMap: { value: dayMap },
+        nightMap: { value: texNotte ? loadTex(texNotte) : dayMap },
+        nightGain: { value: texNotte ? 1.0 : 0.12 },
+        sunDir: { value: sunDir },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        void main() {
+            vUv = uv;
+            vNormal = normalize(position);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+    fragmentShader: `
+        uniform sampler2D dayMap, nightMap;
+        uniform float nightGain;
+        uniform vec3 sunDir;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        void main() {
+            // sin(6 gradi) ~ 0.1: fascia di crepuscolo attorno al terminatore
+            float giorno = smoothstep(-0.1, 0.1, dot(normalize(vNormal), sunDir));
+            vec3 c = mix(texture2D(nightMap, vUv).rgb * nightGain, texture2D(dayMap, vUv).rgb, giorno);
+            gl_FragColor = vec4(c, 1.0);
+            #include <colorspace_fragment>
+        }`,
+})));
 
 function addWithGhost(make) {
     const ghost = make({ transparent: true, opacity: 0.25, depthTest: false });
@@ -157,6 +199,18 @@ for (const [p, color, r] of [[sat, 'red', 150], [ksc, 'yellow', 90]])
     });
 
 const lim = Math.max(R, ...orbit.map(p => Math.hypot(...p))) * 1.05;
+
+// Ombra come cilindro di raggio R in direzione anti-Sole: per un'orbita bassa
+// la conicita' dell'umbra (~0.27 gradi) e' trascurabile. Parte a 0.05 R dal centro
+// perche' sul terminatore la parete toccherebbe la sfera (z-fighting).
+const shadowStart = 0.05 * R, shadowLen = lim * 3;
+const shadow = new THREE.Mesh(
+    new THREE.CylinderGeometry(R, R, shadowLen, 96, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x223366, transparent: true, opacity: 0.3,
+                                  side: THREE.DoubleSide, depthWrite: false }));
+shadow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), sunDir.clone().negate());
+shadow.position.copy(sunDir).multiplyScalar(-(shadowStart + shadowLen / 2));
+scene.add(shadow);
 camera.position.set(...sat).setLength(lim / Math.tan(THREE.MathUtils.degToRad(35 / 2)) * 1.1);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -179,10 +233,12 @@ int main()
 {
     try {
         std::string name;
-        Vec3 sat, ksc;
+        Vec3 sat, ksc, sun;
         std::vector<Vec3> orbit;
-        readOrbit(ORBIT_IN, name, sat, ksc, orbit);
-        writeRender3D(OUT, IMG, name, orbit, sat, ksc);
+        readOrbit(ORBIT_IN, name, sat, ksc, sun, orbit);
+        std::string imgNotte = std::ifstream(IMG_NOTTE) ? IMG_NOTTE : "";
+        if (imgNotte.empty()) std::cout << IMG_NOTTE << " non trovato, lato notte = texture diurna scurita\n";
+        writeRender3D(OUT, IMG, imgNotte, name, orbit, sat, ksc, sun);
         std::cout << "Scritto " << OUT << " (" << orbit.size() << " punti)\n";
     } catch (const std::exception& e) {
         std::cerr << "Errore: " << e.what() << "\n";

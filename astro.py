@@ -7,7 +7,8 @@ import numpy as np
 from beyond.io.tle import Tle
 from beyond.frames import create_station
 from beyond.dates import Date, timedelta
-from beyond.propagators.listeners import RadialVelocityListener
+from beyond.env.solarsystem import get_body
+from beyond.propagators.listeners import RadialVelocityListener, LightListener
 
 R_TERRA = 6378.137
 
@@ -19,6 +20,8 @@ TLE_MAX_AGE = 6 * 3600
 IMG = BASE / "images" / "terra2.jpg"
 ORBIT_OUT = BASE / "orbit3d.txt"
 KSC = (28.524058, -80.65085, 0.0)
+MIN_ELEV = 10.0
+SOLE_MAX_ELEV = -6.0
 F0 = 145.800e6
 C = 299792458.
 PUNTI_CARDINALI = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
@@ -40,11 +43,12 @@ def load_tle():
         raise
 
 
-def write_orbit(path, name, orbit_pts, sat_pt, ksc_pt):
+def write_orbit(path, name, orbit_pts, sat_pt, ksc_pt, sun_dir):
     with open(path, "w") as f:
         f.write(name.strip() + "\n")
         f.write("{:.3f} {:.3f} {:.3f}\n".format(*sat_pt))
         f.write("{:.3f} {:.3f} {:.3f}\n".format(*ksc_pt))
+        f.write("{:.6f} {:.6f} {:.6f}\n".format(*sun_dir))
         for p in orbit_pts:
             f.write("{:.3f} {:.3f} {:.3f}\n".format(*p))
 
@@ -56,13 +60,17 @@ station = create_station('KSC', KSC)
 riferimento = "{} ({:.2f}°{}, {:.2f}°{})".format(
     station.name, abs(KSC[0]), 'N' if KSC[0] >= 0 else 'S', abs(KSC[1]), 'E' if KSC[1] >= 0 else 'O')
 
+sun = get_body('Sun')
+luce = LightListener()
+
 start = Date.now()
 
 azims, elevs = [], []
 dates, dopplers = [], []
+illuminati, sole_elevs = [], []
 pass_events = {}
 
-for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), step=timedelta(seconds=10), events=RadialVelocityListener(station, sight=True)):
+for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), step=timedelta(seconds=10), events=[RadialVelocityListener(station, sight=True), luce]):
     azim = -np.degrees(orb.theta) % 360
     elev = np.degrees(orb.phi)
     r = orb.r / 1000.
@@ -72,17 +80,25 @@ for orb in station.visibility(tle.orbit(), start=start, stop=timedelta(days=1), 
     elevs.append(elev)
     dates.append(orb.date.datetime)
     dopplers.append(doppler)
-
-    print("{event:15} {tle.name}  {date:%Y-%m-%dT%H:%M:%S.%f} {azim:7.2f} {elev:7.2f} {r:10.2f} {doppler:+9.1f}".format(
-        date=orb.date, r=r, azim=azim, elev=elev, doppler=doppler,
-        tle=tle, event=orb.event.info if orb.event is not None else ""
-    ))
+    illuminati.append(luce(orb) > 0)
+    sole_elevs.append(np.degrees(sun.propagate(orb.date).copy(frame=station, form='spherical').phi))
 
     if orb.event is not None:
+        print("{event:15} {tle.name}  {date:%Y-%m-%dT%H:%M:%S.%f} {azim:7.2f} {elev:7.2f} {r:10.2f} {doppler:+9.1f}".format(
+            date=orb.date, r=r, azim=azim, elev=elev, doppler=doppler,
+            tle=tle, event=orb.event.info
+        ))
         pass_events.setdefault(orb.event.info, (orb.date, azim, elev))
 
     if orb.event and orb.event.info == "LOS":
-        break
+        max_elev_pass = max(elevs)
+        if max_elev_pass >= MIN_ELEV:
+            break
+        print("Passaggio scartato: elevazione massima {:.1f}° < {}°".format(max_elev_pass, MIN_ELEV))
+        azims, elevs = [], []
+        dates, dopplers = [], []
+        illuminati, sole_elevs = [], []
+        pass_events = {}
 
 if "MAX" in pass_events and "LOS" in pass_events:
     aos_date = pass_events["AOS"][0] if "AOS" in pass_events else start
@@ -90,10 +106,20 @@ if "MAX" in pass_events and "LOS" in pass_events:
     los_date = pass_events["LOS"][0]
     direzione = PUNTI_CARDINALI[int((max_azim + 22.5) // 45) % 8]
     durata = (los_date - aos_date).total_seconds() / 60
-    print("Prossimo passaggio visibile da {}: {:%H:%M} UTC  max {:.0f}° a {}  durata {:.0f} min".format(
+    print("Prossimo passaggio da {}: {:%H:%M} UTC  max {:.0f}° a {}  durata {:.0f} min".format(
         riferimento, aos_date.datetime, max_elev, direzione, durata))
+
+    visibili = [d for d, lit, se in zip(dates, illuminati, sole_elevs) if lit and se < SOLE_MAX_ELEV]
+    if visibili:
+        print("Visibile a occhio nudo: {:%H:%M} - {:%H:%M} UTC".format(visibili[0], visibili[-1]))
+    elif min(sole_elevs) >= SOLE_MAX_ELEV:
+        print("Non visibile a occhio nudo: cielo troppo chiaro (sole a {:.0f}°)".format(max(sole_elevs)))
+    elif not any(illuminati):
+        print("Non visibile a occhio nudo: satellite nell'ombra della Terra")
+    else:
+        print("Non visibile a occhio nudo: satellite in ombra quando il cielo è buio")
 else:
-    print("Nessun passaggio visibile da {} nelle prossime 24 ore".format(riferimento))
+    print("Nessun passaggio sopra {}° da {} nelle prossime 24 ore".format(MIN_ELEV, riferimento))
 
 orb = tle.orbit()
 
@@ -136,12 +162,15 @@ for point in orb.ephemeris(start=start, stop=stop, step=step):
 
 now = orb.propagate(start)
 lon, lat = np.degrees(now.copy(frame='ITRF', form='spherical')[1:3])
-print("%s %s" % (lon, lat))
+print("Posizione attuale: {:.2f}°{}, {:.2f}°{}".format(
+    abs(lat), 'N' if lat >= 0 else 'S', abs(lon), 'E' if lon >= 0 else 'O'))
 
 sat_pt = np.array(now.copy(frame='ITRF', form='cartesian')[:3]) / 1000.
 st = np.radians(KSC[:2])
 ksc_pt = R_TERRA * np.array([np.cos(st[0]) * np.cos(st[1]), np.cos(st[0]) * np.sin(st[1]), np.sin(st[0])])
-write_orbit(ORBIT_OUT, tle.name, orbit_pts, sat_pt, ksc_pt)
+sun_pt = np.array(sun.propagate(start).copy(frame='ITRF', form='cartesian')[:3])
+sun_dir = sun_pt / np.linalg.norm(sun_pt)
+write_orbit(ORBIT_OUT, tle.name, orbit_pts, sat_pt, ksc_pt, sun_dir)
 print("Scritto {}".format(ORBIT_OUT.name))
 
 im = plt.imread(IMG)

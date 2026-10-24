@@ -25,8 +25,8 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
    - la ground track sulla mappa `images/terra2.jpg`, con la posizione attuale del satellite in rosso;
    - il grafico polare del passaggio (Nord in alto, azimut in senso orario, zenit al centro);
    - la curva Doppler del passaggio sul downlink vocale ARISS a 145.800 MHz (vedi sotto).
-5. **Esporta l'orbita** in `orbit3d.txt`, in coordinate ITRF cartesiane espresse in km.
-6. **Il programma C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture e l'orbita, renderizzate in WebGL con three.js.
+5. **Esporta l'orbita** in `orbit3d.txt`, in coordinate ITRF cartesiane espresse in km, insieme alla direzione del Sole.
+6. **Il programma C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte, cilindro d'ombra e l'orbita, renderizzate in WebGL con three.js.
 
 ## Come funziona
 
@@ -36,17 +36,24 @@ astro.py ──► orbit3d.txt ──► render3d (C++) ──► render3d.html
    └──► grafici 2D (matplotlib)
 ```
 
-Formato di `orbit3d.txt` (tutte le coordinate sono in km):
+Formato di `orbit3d.txt` (le coordinate sono in km, tranne la direzione del Sole):
 
 ```
 ISS (ZARYA)                 nome del satellite
 x y z                       posizione attuale del satellite
 x y z                       posizione di KSC
+x y z                       direzione del Sole (versore, adimensionale)
 x y z                       punti dell'orbita, uno per riga
 ...
 ```
 
 Nel render 3D l'occlusione dietro la Terra è gestita dal depth buffer della GPU. Le parti nascoste dell'orbita e dei marker si vedono comunque, disegnate semitrasparenti sopra la Terra. La texture è incorporata nell'HTML in base64: aprendo il file da `file://`, il browser bloccherebbe per WebGL un'immagine caricata a parte.
+
+### Terminatore e ombra
+
+La direzione del Sole è calcolata all'istante attuale. Uno shader mescola la texture diurna e quella notturna in base al prodotto scalare tra la normale alla superficie e la direzione del Sole, con una sfumatura di circa ±6° attorno al terminatore (crepuscolo). La texture notturna va messa in `images/terra_noc.jpg`, equirettangolare e orientata come `terra2.jpg`. Se il file manca, il lato notte usa la texture diurna scurita.
+
+L'ombra della Terra è un cilindro semitrasparente di raggio R orientato in direzione anti-Sole: per un'orbita bassa l'apertura del cono d'ombra (~0.27°) è trascurabile. L'ombra vale per l'istante attuale. L'orbita è disegnata in ITRF e in un periodo (~92 min) il Sole ruota di circa 23° in quel sistema, quindi i punti di ingresso e uscita dall'ombra lungo il resto dell'orbita sono solo indicativi.
 
 ## Curva Doppler
 
