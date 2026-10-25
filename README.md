@@ -88,13 +88,15 @@ python3 astro.py --freq 437.800     # oppure 437.8
 
 Dopo aver installato i pacchetti di sistema:
 
-| Distro                     | Comando                                                                  |
-|----------------------------|--------------------------------------------------------------------------|
-| Fedora                     | `sudo dnf install python3 python3-pip clang make xdg-utils`              |
-| Debian / Ubuntu based      | `sudo apt install python3 python3-pip python3-venv clang make xdg-utils` |
-| Arch                       | `sudo pacman -S python python-pip clang make xdg-utils`                  |
+| Distro                     | Comando                                                                             |
+|----------------------------|-------------------------------------------------------------------------------------|
+| Fedora                     | `sudo dnf install python3 python3-pip python3-tkinter clang make xdg-utils`         |
+| Debian / Ubuntu based      | `sudo apt install python3 python3-pip python3-venv python3-tk clang make xdg-utils` |
+| Arch                       | `sudo pacman -S python python-pip tk clang make xdg-utils`                          |
 
-`beyond` non è nei repository delle distribuzioni. Ovviamente con venv su Debian, Ubuntu e Arch :
+I pacchetti tkinter (`python3-tkinter`, `python3-tk`, `tk`) servono a matplotlib per aprire le finestre dei grafici.
+
+`beyond` non è nei repository delle distribuzioni. Con venv:
 
 ```
 python3 -m venv .venv
