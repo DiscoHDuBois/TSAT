@@ -66,9 +66,13 @@ Nel frame della stazione `orb.r_dot` è la velocità radiale ṙ. Lo spostamento
 Δf = −f₀ · ṙ / c
 ```
 
-con `f₀ = 145.800 MHz` (`F0` in `astro.py`) e `c` la velocità della luce. Quando il satellite si avvicina ṙ < 0 e la frequenza sale, quando si allontana scende. Lo zero cade al punto di massimo avvicinamento, a tal proposito si è usato `RadialVelocityListener`.
+con `f₀ = 145.800 MHz` di default e `c` la velocità della luce. Quando il satellite si avvicina ṙ < 0 e la frequenza sale, quando si allontana scende. Lo zero cade al punto di massimo avvicinamento, a tal proposito si è usato `RadialVelocityListener`.
 
-Per la ISS |ṙ| arriva al massimo a circa 7 km/s, cioè circa ±3.4 kHz, ma solo vicino all'orizzonte nei passaggi quasi sopra la testa. Nei passaggi bassi lo spostamento è minore. Per un'altra frequenza -> cambiare `F0`.
+Per la ISS |ṙ| arriva al massimo a circa 7 km/s, cioè circa ±3.4 kHz. Nei passaggi bassi lo spostamento è minore. Per un'altra frequenza -> riga di comando in MHz:
+
+```
+python3 astro.py --freq 437.800     # oppure 437.8
+```
 
 ## Requisiti
 
@@ -76,9 +80,28 @@ Per la ISS |ṙ| arriva al massimo a circa 7 km/s, cioè circa ±3.4 kHz, ma sol
   ```
   pip install -r requirements.txt
   ```
-- `clang++` con supporto C++17 (su macOS: `xcode-select --install`)
+- `clang++` con supporto C++17
 - Connessione internet, per il TLE e per caricare three.js dalla CDN
 - Il file `images/terra2.jpg` nella cartella del progetto
+
+### Linux
+
+Dopo aver installato i pacchetti di sistema:
+
+| Distro                     | Comando                                                                  |
+|----------------------------|--------------------------------------------------------------------------|
+| Fedora                     | `sudo dnf install python3 python3-pip clang make xdg-utils`              |
+| Debian / Ubuntu based      | `sudo apt install python3 python3-pip python3-venv clang make xdg-utils` |
+| Arch                       | `sudo pacman -S python python-pip clang make xdg-utils`                  |
+
+`beyond` non è nei repository delle distribuzioni. Ovviamente con venv su Debian, Ubuntu e Arch :
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 
 ## Come eseguirlo
 
@@ -112,7 +135,7 @@ In `astro.py`:
 
 - `NORAD_ID`: il numero di catalogo del satellite (ad esempio 20580 per Hubble);
 - `KSC`: latitudine, longitudine e quota della stazione di terra;
-- `F0`: la frequenza di downlink usata per la curva Doppler.
+- `F0_DEFAULT_MHZ`: la frequenza di downlink di default per la curva Doppler (`--freq` per sovrascriverla).
 
 Se cambi satellite, il file del TLE salvato prende il nuovo nome in automatico (`tle_<NORAD_ID>.txt`). Se cambi stazione, la legenda del render 3D continua a mostrare la scritta "KSC", perché è fissa in `render3d.cpp`.
 

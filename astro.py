@@ -1,3 +1,4 @@
+import argparse
 import time
 import urllib.request
 from pathlib import Path
@@ -24,7 +25,7 @@ ORBIT_OUT = BASE / "orbit3d.txt"
 KSC = (28.524058, -80.65085, 0.0)
 MIN_ELEV = 10.0
 SOLE_MAX_ELEV = -6.0
-F0 = 145.800e6
+F0_DEFAULT_MHZ = 145.800
 C = 299792458.
 PUNTI_CARDINALI = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
 
@@ -54,6 +55,14 @@ def write_orbit(path, name, orbit_pts, sat_pt, ksc_pt, sun_dir):
         for p in orbit_pts:
             f.write("{:.3f} {:.3f} {:.3f}\n".format(*p))
 
+
+parser = argparse.ArgumentParser(description="Traccia il satellite e calcola il prossimo passaggio")
+parser.add_argument("-f", "--freq", type=float, default=F0_DEFAULT_MHZ, metavar="MHZ",
+                    help="frequenza di downlink per la curva Doppler, in MHz (default %(default).3f)")
+args = parser.parse_args()
+if args.freq <= 0:
+    parser.error("la frequenza deve essere positiva")
+F0 = args.freq * 1e6
 
 tle = load_tle()
 print("TLE: {} (epoca {:%Y-%m-%d %H:%M} UTC)".format(tle.name, tle.epoch.datetime))
