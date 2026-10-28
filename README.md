@@ -30,7 +30,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 
    Passando il mouse sulla curva Doppler o sull'elevazione, un marker arancione mostra lo stesso istante sul grafico polare e sulla mappa, dove in arancione c'è anche la traccia al suolo del passaggio.
 5. **Esporta una timeline di 24 ore** in `orbit3d.txt`: posizione del satellite (ITRF cartesiano, km) e direzione del Sole ogni 60 s, più gli intervalli in cui il satellite è sopra l'orizzonte di KSC o visibile a occhio nudo.
-6. **Il programma C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte, cilindro d'ombra e orbita, renderizzate in WebGL con three.js e animate lungo la timeline.
+6. **C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte, cilindro d'ombra e orbita, renderizzate in WebGL con three.js e animate lungo la timeline.
 
 ## Come funziona
 
