@@ -27,6 +27,8 @@ ORBIT_OUT = BASE / "orbit3d.txt"
 KSC = (28.524058, -80.65085, 0.0)
 MIN_ELEV = 10.0
 SOLE_MAX_ELEV = -6.0
+TIMELINE_DURATA = timedelta(hours=24)
+TIMELINE_PASSO = timedelta(seconds=60)
 F0_DEFAULT_MHZ = 145.800
 C = 299792458.
 PUNTI_CARDINALI = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
@@ -57,6 +59,19 @@ class Passaggio:
         return -f0 * np.array(self.r_dot) / C
 
 
+@dataclass
+class Timeline:
+    """Campioni per l'animazione del render 3D. Tempi in secondi da `start`, posizioni ITRF in km."""
+    start: Date
+    passo: float
+    periodo: float
+    durata: float                                     # intervallo percorribile con lo slider
+    sat: list = field(default_factory=list)           # coprono durata + periodo: l'orbita disegnata è un periodo avanti
+    sole: list = field(default_factory=list)          # versori della direzione del Sole
+    sopra: list = field(default_factory=list)         # intervalli [inizio, fine] sopra l'orizzonte della stazione
+    visibile: list = field(default_factory=list)      # intervalli [inizio, fine] visibili a occhio nudo
+
+
 def load_tle():
     if TLE_CACHE.exists() and time.time() - TLE_CACHE.stat().st_mtime < TLE_MAX_AGE:
         return Tle(TLE_CACHE.read_text())
@@ -73,14 +88,18 @@ def load_tle():
         raise
 
 
-def write_orbit(path, name, orbit_pts, sat_pt, ksc_pt, sun_dir):
+def write_orbit(path, name, ksc_pt, tl):
     with open(path, "w") as f:
         f.write(name.strip() + "\n")
-        f.write("{:.3f} {:.3f} {:.3f}\n".format(*sat_pt))
+        f.write("{}Z {:g} {:.1f} {:g}\n".format(
+            tl.start.datetime.isoformat(timespec='milliseconds'), tl.passo, tl.periodo, tl.durata))
         f.write("{:.3f} {:.3f} {:.3f}\n".format(*ksc_pt))
-        f.write("{:.6f} {:.6f} {:.6f}\n".format(*sun_dir))
-        for p in orbit_pts:
-            f.write("{:.3f} {:.3f} {:.3f}\n".format(*p))
+        for intervalli in (tl.sopra, tl.visibile):
+            f.write("{}\n".format(len(intervalli)))
+            for a, b in intervalli:
+                f.write("{:.1f} {:.1f}\n".format(a, b))
+        for p, s in zip(tl.sat, tl.sole):
+            f.write("{:.3f} {:.3f} {:.3f} {:.6f} {:.6f} {:.6f}\n".format(*p, *s))
 
 
 def find_pass(tle, station, sun, start, min_elev=MIN_ELEV, finestra=timedelta(days=1)):
@@ -115,19 +134,47 @@ def find_pass(tle, station, sun, start, min_elev=MIN_ELEV, finestra=timedelta(da
     return p
 
 
+def timeline(tle, station, sun, start, durata=TIMELINE_DURATA, passo=TIMELINE_PASSO):
+    orb = tle.orbit()
+    periodo = orb.infos.period
+    tl = Timeline(start, passo.total_seconds(), periodo.total_seconds(), durata.total_seconds())
+
+    for point in orb.ephemeris(start=start, stop=durata + periodo + passo, step=passo):
+        tl.sat.append(np.array(point.copy(frame='ITRF', form='cartesian')[:3]) / 1000.)
+        s = np.array(sun.propagate(point.date).copy(frame='ITRF', form='cartesian')[:3])
+        tl.sole.append(s / np.linalg.norm(s))
+
+    # events=True aggiunge i punti esatti di AOS e LOS. Senza LightListener tra gli eventi la scansione
+    # è ~5 volte più veloce: luce e Sole si calcolano solo sui punti sopra l'orizzonte, con la precisione del passo
+    luce = LightListener()
+    step = timedelta(seconds=10)
+    prec, vis_prec = None, False
+    for orb in station.visibility(tle.orbit(), start=start, stop=durata, step=step, events=True):
+        t = (orb.date - start).total_seconds()
+        vis = luce(orb) > 0 and np.degrees(sun.propagate(orb.date).copy(frame=station, form='spherical').phi) < SOLE_MAX_ELEV
+        # visibility() restituisce solo i punti sopra l'orizzonte: un salto nei tempi è un nuovo passaggio
+        nuovo = prec is None or t - prec > 1.5 * step.total_seconds()
+        if nuovo:
+            tl.sopra.append([t, t])
+        tl.sopra[-1][1] = t
+        if vis:
+            if nuovo or not vis_prec:
+                tl.visibile.append([t, t])
+            tl.visibile[-1][1] = t
+        prec, vis_prec = t, vis
+
+    return tl
+
+
 def ground_track(orb, start, n=100):
 
     latitudes, longitudes = [], []
-    orbit_pts = []
     prev_lon, prev_lat = None, None
 
     period = orb.infos.period
 
     for point in orb.ephemeris(start=start, stop=period, step=period / n):
         point.frame = 'ITRF'
-
-        orbit_pts.append(point.copy(form='cartesian')[:3] / 1000.)
-
         point.form = 'spherical'
 
         lon, lat = np.degrees(point[1:3])
@@ -151,7 +198,7 @@ def ground_track(orb, start, n=100):
         prev_lon = lon
         prev_lat = lat
 
-    return longitudes, latitudes, orbit_pts
+    return longitudes, latitudes
 
 
 def stampa_eventi(eventi, nome, f0):
@@ -293,20 +340,19 @@ def main():
     stampa_passaggio(stato['p'], tle.name, stato['f0'], riferimento)
 
     orb = tle.orbit()
-    longitudes, latitudes, orbit_pts = ground_track(orb, start)
+    longitudes, latitudes = ground_track(orb, start)
 
     now = orb.propagate(start)
     lon, lat = np.degrees(now.copy(frame='ITRF', form='spherical')[1:3])
     print("Posizione attuale: {:.2f}°{}, {:.2f}°{}".format(
         abs(lat), 'N' if lat >= 0 else 'S', abs(lon), 'E' if lon >= 0 else 'O'))
 
-    sat_pt = np.array(now.copy(frame='ITRF', form='cartesian')[:3]) / 1000.
     st = np.radians(KSC[:2])
     ksc_pt = R_TERRA * np.array([np.cos(st[0]) * np.cos(st[1]), np.cos(st[0]) * np.sin(st[1]), np.sin(st[0])])
-    sun_pt = np.array(sun.propagate(start).copy(frame='ITRF', form='cartesian')[:3])
-    sun_dir = sun_pt / np.linalg.norm(sun_pt)
-    write_orbit(ORBIT_OUT, tle.name, orbit_pts, sat_pt, ksc_pt, sun_dir)
-    print("Scritto {}".format(ORBIT_OUT.name))
+    tl = timeline(tle, station, sun, start)
+    write_orbit(ORBIT_OUT, tle.name, ksc_pt, tl)
+    print("Scritto {} ({} campioni ogni {:g} s, {} passaggi sopra l'orizzonte, {} visibili)".format(
+        ORBIT_OUT.name, len(tl.sat), tl.passo, len(tl.sopra), len(tl.visibile)))
 
     fig_map, ax_map = plt.subplots(figsize=(15.2, 8.2))
     plot_map(ax_map, longitudes, latitudes, lon, lat)
