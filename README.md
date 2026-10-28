@@ -11,10 +11,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 - **C++ (`render3d.cpp`)**: si occupa solo della visualizzazione 3D.
 
 <p align="center">
-  <img src="images/screen.png" alt="Render 3D: la Terra con l'orbita della ISS, la posizione attuale del satellite in rosso e KSC in giallo" width="600">
-</p>
-<p align="center">
-  <img src="images/screen2.png" alt="Porzione Notturna" width="600">
+  <img src="images/screen3.png" alt="Porzione Notturna" width="600">
 </p>
 
 <p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
