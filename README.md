@@ -28,6 +28,10 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
    - la ground track sulla mappa `images/terra2.jpg`, con la posizione attuale del satellite in rosso;
    - il grafico polare del passaggio (Nord in alto, azimut in senso orario, zenit al centro);
    - la curva Doppler del passaggio sul downlink vocale ARISS a 145.800 MHz (vedi sotto).
+
+   Controlli Doppler: il campo `f0 [MHz]` cambia la frequenza di downlink (solo ridisegno, senza ripropagare l'orbita) e il pulsante **Passaggio successivo** cerca il passaggio dopo quello mostrato e aggiorna il grafico polare e la curva Doppler.
+
+   Passando il mouse sulla curva Doppler o sull'elevazione, un marker arancione mostra lo stesso istante sul grafico polare e sulla mappa, dove in arancione c'è anche la traccia al suolo del passaggio.
 5. **Esporta l'orbita** in `orbit3d.txt`, in coordinate ITRF cartesiane espresse in km, insieme alla direzione del Sole.
 6. **Il programma C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte, cilindro d'ombra e l'orbita, renderizzate in WebGL con three.js.
 
@@ -115,6 +119,7 @@ make run
 ```
 
 - `python3 astro.py` stampa il passaggio, scrive `orbit3d.txt` e apre i grafici 2D (ground track, grafico polare e curva Doppler). Lo script resta in esecuzione finché non chiudi le finestre, ma `orbit3d.txt` è già stato scritto prima che si aprano.
+- I calcoli sono in funzioni (`find_pass`, `ground_track`, ...) e lo script parte da `main()`: si può anche fare `import astro` da Python o Jupyter e richiamarle con altri parametri.
 - `make run` compila `render3d.cpp`, genera `render3d.html` e lo apre nel browser. Se `orbit3d.txt` manca, lancia prima lo script Python.
 
 Dopo un `git clone` il repository contiene solo i sorgenti. L'eseguibile `render3d` e i file generati (`orbit3d.txt`, `render3d.html` e la cache `tle_<NORAD_ID>.txt`) sono esclusi dal `.gitignore`. Il primo `make run` li crea tutti, quindi servono la connessione internet e le librerie Python elencate nei requisiti.
