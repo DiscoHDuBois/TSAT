@@ -8,7 +8,7 @@
 Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il lavoro è diviso in due parti:
 
 - **Python (`astro.py`)**: calcola tutto e disegna i grafici 2D.
-- **C++ (`render3d.cpp`)**: si occupa solo della visualizzazione 3D.
+- **C++ (`render3d.cpp`)**: per il 3D.
 
 <p align="center">
   <img src="images/screen3.png" alt="Porzione Notturna" width="600">
