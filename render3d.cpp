@@ -143,7 +143,7 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 #legend span { display: inline-block; width: 22px; margin-right: 6px; text-align: center; }
 #hint { position: absolute; top: 12px; left: 12px; font-size: 12px; color: #888; }
 #controlli { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px;
-             padding: 6px 10px; border: 1px solid #666; background: rgba(0,0,0,.7); font-size: 14px; }
+             padding: 15px 18px; border: 1px solid #666; background: rgba(0,0,0,.7); font-size: 14px; }
 #controlli button, #controlli select { height: 28px; background: #222; color: white; border: 1px solid #666; border-radius: 4px; font-size: 14px; cursor: pointer; }
 #controlli button { width: 34px; }
 #barra { position: relative; flex: 1; height: 22px; }
