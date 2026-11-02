@@ -147,7 +147,6 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 #controlli button, #controlli select { height: 28px; background: #222; color: white; border: 1px solid #666; border-radius: 4px; font-size: 14px; cursor: pointer; }
 #controlli button { width: 34px; }
 #barra { position: relative; flex: 1; height: 22px; }
-/* Passaggi sotto lo slider; 7px = mezzo cursore, così le barre coincidono con la corsa del cursore */
 #passi { position: absolute; left: 7px; right: 7px; top: 8px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); }
 #passi span { position: absolute; top: 0; height: 100%; min-width: 2px; background: #999; }
 #passi span.vis { background: #33dd66; }
