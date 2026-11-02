@@ -318,6 +318,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Traccia il satellite e calcola il prossimo passaggio")
     parser.add_argument("-f", "--freq", type=float, default=F0_DEFAULT_MHZ, metavar="MHZ",
                         help="frequenza di downlink per la curva Doppler, in MHz (default %(default).3f)")
+    parser.add_argument("--no-plot", action="store_true",
+                        help="scrive solo orbit3d.txt senza aprire i grafici (per GitHub Actions)")
     args = parser.parse_args()
     if args.freq <= 0:
         parser.error("la frequenza deve essere positiva")
@@ -356,6 +358,8 @@ def main():
     write_orbit(ORBIT_OUT, tle.name, ksc_pt, tl)
     print("Scritto {} ({} campioni ogni {:g} s, {} passaggi sopra l'orizzonte, {} visibili)".format(
         ORBIT_OUT.name, len(tl.sat), tl.passo, len(tl.sopra), len(tl.visibile)))
+    if args.no_plot:
+        return
 
     fig_map, ax_map = plt.subplots(figsize=(15.2, 8.2))
     plot_map(ax_map, longitudes, latitudes, lon, lat)

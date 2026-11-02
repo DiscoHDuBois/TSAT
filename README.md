@@ -10,6 +10,8 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 - **Python (`astro.py`)**: calcola tutto e disegna i grafici 2D.
 - **C++ (`render3d.cpp`)**: per il 3D.
 
+**Demo live (Per ora solo del render 3D):** <https://discohdubois.github.io/TSAT/> (rigenerata ogni 6 ore, vedi [GitHub Pages](#github-pages)).
+
 <p align="center">
   <img src="images/screen3.png" alt="Porzione Notturna" width="600">
 </p>
@@ -145,6 +147,10 @@ Altri comandi:
 | `make clean`   | cancella `render3d`, `render3d.html` e `orbit3d.txt`   |
 
 `make run` non rilancia lo script Python se `orbit3d.txt` esiste già. Per far partire la timeline da adesso, rilancia `python3 astro.py` oppure fai prima `make clean`. Un `orbit3d.txt` scritto da una versione precedente non è più leggibile: `render3d` lo segnala e va rigenerato.
+
+### GitHub Pages
+
+Il workflow `.github/workflows/pages.yml` rifà su GitHub Actions gli stessi passi di `make run`: esegue `python3 astro.py --no-plot` (solo `orbit3d.txt`, senza grafici), compila `render3d`, genera `render3d.html` e lo pubblica come `index.html` su GitHub Pages.
 
 ## Cambiare satellite o stazione
 
