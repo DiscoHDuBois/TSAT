@@ -155,6 +155,9 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 #barra input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: 4px; border-radius: 50%; background: white; }
 #barra input::-moz-range-track { height: 22px; background: transparent; }
 #barra input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: white; }
+#tip { position: absolute; bottom: calc(100% + 8px); transform: translateX(-50%); padding: 4px 8px; background: rgba(0,0,0,.85);
+       border: 1px solid #666; border-radius: 4px; font-size: 12px; color: #ddd; white-space: nowrap; pointer-events: none; display: none; }
+#tip.vis { border-color: #33dd66; color: #33dd66; padding: 6px 11px; font-size: 14px; }
 #ora { font-variant-numeric: tabular-nums; white-space: nowrap; }
 #stato { min-width: 13em; white-space: nowrap; color: #bbb; }
 </style>
@@ -175,7 +178,7 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 <div id='controlli'>
 <button id='play' title='Play / Pausa'>&#9654;</button>
 <button id='stop' title='Stop: torna all&rsquo;inizio'>&#9632;</button>
-<div id='barra'><div id='passi'></div><input id='slider' type='range' min='0' step='any' value='0'></div>
+<div id='barra'><div id='passi'></div><input id='slider' type='range' min='0' step='any' value='0'><div id='tip'></div></div>
 <span id='ora'></span>
 <span id='stato'></span>
 <select id='velocita' title='Velocit&agrave; della simulazione'>
@@ -373,6 +376,38 @@ for (const [lista, cls] of [[sopra, 'sopra'], [visibile, 'vis']])
         s.style.width = 100 * (Math.min(b, durata) - a) / durata + '%';
         passi.appendChild(s);
     }
+
+const barra = document.getElementById('barra'), tip = document.getElementById('tip');
+function intervalloSotto(e) {
+    const r = barra.getBoundingClientRect(), corsa = r.width - 14;
+    const tm = (e.clientX - r.left - 7) / corsa * durata, tol = 4 / corsa * durata;
+    for (const [lista, vis] of [[visibile, true], [sopra, false]])
+        for (const [a, b] of lista)
+            if (a <= durata && tm >= a - tol && tm <= Math.min(b, durata) + tol)
+                return { a, b: Math.min(b, durata), vis, x: 7 + (a + Math.min(b, durata)) / 2 / durata * corsa };
+    return null;
+}
+const hhmm = s => new Date(t0 + s * 1000).toISOString().slice(11, 16);
+slider.addEventListener('pointermove', e => {
+    const iv = intervalloSotto(e);
+    tip.style.display = iv ? 'block' : 'none';
+    if (!iv) return;
+    tip.className = iv.vis ? 'vis' : '';
+    tip.textContent = (iv.vis ? 'Qui è visibile a occhio nudo'
+                              : "Clicca qui per vedere il passaggio sopra l'orizzonte di KSC")
+                      + ' (' + hhmm(iv.a) + '–' + hhmm(iv.b) + ' UTC)';
+    const w = tip.offsetWidth, bw = barra.clientWidth;
+    tip.style.left = Math.max(w / 2, Math.min(bw - w / 2, iv.x)) + 'px';
+});
+slider.addEventListener('pointerleave', () => tip.style.display = 'none');
+let xDown = null;
+slider.addEventListener('pointerdown', e => xDown = e.clientX);
+slider.addEventListener('click', e => {
+    const fermo = xDown !== null && Math.abs(e.clientX - xDown) < 4;
+    xDown = null;
+    const iv = fermo && intervalloSotto(e);
+    if (iv) aggiorna(t = iv.a);
+});
 
 const satPos = new THREE.Vector3();
 function aggiorna(t) {
