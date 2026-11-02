@@ -6,6 +6,7 @@ from pathlib import Path
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.layout_engine import ConstrainedLayoutEngine
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.widgets import Button, TextBox
 import numpy as np
@@ -169,6 +170,7 @@ def timeline(tle, station, sun, start, durata=TIMELINE_DURATA, passo=TIMELINE_PA
 def ground_track(orb, start, n=100):
 
     latitudes, longitudes = [], []
+    lons, lats = [], []
     prev_lon, prev_lat = None, None
 
     period = orb.infos.period
@@ -343,6 +345,7 @@ def main():
     longitudes, latitudes = ground_track(orb, start)
 
     now = orb.propagate(start)
+    assert now is not None
     lon, lat = np.degrees(now.copy(frame='ITRF', form='spherical')[1:3])
     print("Posizione attuale: {:.2f}°{}, {:.2f}°{}".format(
         abs(lat), 'N' if lat >= 0 else 'S', abs(lon), 'E' if lon >= 0 else 'O'))
@@ -365,9 +368,11 @@ def main():
 
     fig, (ax, ax_el) = plt.subplots(2, 1, sharex=True, figsize=(7, 6.6), height_ratios=[2, 1], layout='constrained')
     # Il layout usa solo la parte sopra il 9% in basso; lì vanno i widget, che il layout ignora
-    fig.get_layout_engine().set(rect=(0, 0.09, 1, 0.91))
-    box = TextBox(fig.add_axes([0.17, 0.02, 0.2, 0.05]), "f0 [MHz] ", initial="{:.3f}".format(args.freq))
-    btn = Button(fig.add_axes([0.55, 0.02, 0.35, 0.05]), "Passaggio successivo")
+    engine = fig.get_layout_engine()
+    assert isinstance(engine, ConstrainedLayoutEngine)
+    engine.set(rect=(0, 0.09, 1, 0.91))
+    box = TextBox(fig.add_axes((0.17, 0.02, 0.2, 0.05)), "f0 [MHz] ", initial="{:.3f}".format(args.freq))
+    btn = Button(fig.add_axes((0.55, 0.02, 0.35, 0.05)), "Passaggio successivo")
 
     cursore = {}
 
