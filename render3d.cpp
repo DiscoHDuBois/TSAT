@@ -37,7 +37,7 @@ static std::string readFile(const std::string& path)
 static std::runtime_error malformata(const std::string& line)
 {
     return std::runtime_error("riga malformata in " + ORBIT_IN + ": " + line +
-                              "\n(se il file viene da una versione precedente, rigeneralo con python3 astro.py)");
+                              "\n(se il file viene da una versione precedente, rigeneralo -> python3 astro.py)");
 }
 
 // Legge esattamente n numeri dalla riga
@@ -227,8 +227,6 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 100, 1e6);
 camera.up.set(0, 0, 1);
 
-// Interpolazione lineare normalizzata: la direzione segue l'arco tra due campioni e il modulo varia
-// linearmente. Con campioni ogni 60 s l'errore sulla posizione è sotto il km, contro ~4 km della corda.
 const va = new THREE.Vector3(), vb = new THREE.Vector3();
 function interp(arr, t, out) {
     const x = THREE.MathUtils.clamp(t / passo, 0, arr.length - 1);
@@ -264,7 +262,7 @@ function loadTex(src) {
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     return t;
 }
-// Unico vettore condiviso da shader e cilindro d'ombra: aggiorna() lo modifica sul posto
+// aggiorna() modifica subito vettore condiviso da shader e cilindro
 const sunDir = new THREE.Vector3().fromArray(sole[0]);
 const dayMap = loadTex(tex);
 scene.add(new THREE.Mesh(earthGeo, new THREE.ShaderMaterial({
@@ -305,8 +303,7 @@ function addWithGhost(make) {
 }
 const resolution = new THREE.Vector2(innerWidth, innerHeight);
 
-// Orbita: un periodo in avanti dalla posizione attuale. La geometria si ricostruisce a ogni
-// aggiornamento (circa 100 punti) e le due linee la condividono.
+// Geometria ricostruita per ogni upd
 let orbitGeo = new LineGeometry();
 const orbitLines = addWithGhost(opts => new Line2(orbitGeo, new LineMaterial({
     color: 'white', linewidth: opts.depthTest === false ? 1 : 2, dashed: true, dashSize: 150, gapSize: 250,
@@ -344,9 +341,6 @@ const linkLines = addWithGhost(opts => {
 
 const lim = Math.max(R, ...sat.map(p => Math.hypot(...p))) * 1.05;
 
-// Ombra come cilindro di raggio R in direzione anti-Sole: per un'orbita bassa
-// la conicita' dell'umbra (~0.27 gradi) e' trascurabile. Parte a 0.05 R dal centro
-// perche' sul terminatore la parete toccherebbe la sfera (z-fighting).
 const shadowStart = 0.05 * R, shadowLen = lim * 3;
 const shadow = new THREE.Mesh(
     new THREE.CylinderGeometry(R, R, shadowLen, 96, 1, true),
@@ -378,28 +372,46 @@ for (const [lista, cls] of [[sopra, 'sopra'], [visibile, 'vis']])
     }
 
 const barra = document.getElementById('barra'), tip = document.getElementById('tip');
-function intervalloSotto(e) {
-    const r = barra.getBoundingClientRect(), corsa = r.width - 14;
-    const tm = (e.clientX - r.left - 7) / corsa * durata, tol = 4 / corsa * durata;
+// Intervallo che contiene l'istante tm, con tolleranza tol --> PRIMA i visibili, POI quelli sopra l'orizzonte
+function intervalloA(tm, tol) {
+    const corsa = barra.clientWidth - 14;
     for (const [lista, vis] of [[visibile, true], [sopra, false]])
         for (const [a, b] of lista)
             if (a <= durata && tm >= a - tol && tm <= Math.min(b, durata) + tol)
                 return { a, b: Math.min(b, durata), vis, x: 7 + (a + Math.min(b, durata)) / 2 / durata * corsa };
     return null;
 }
+function intervalloSotto(e) {
+    const r = barra.getBoundingClientRect(), corsa = r.width - 14;
+    return intervalloA((e.clientX - r.left - 7) / corsa * durata, 4 / corsa * durata);
+}
 const hhmm = s => new Date(t0 + s * 1000).toISOString().slice(11, 16);
-slider.addEventListener('pointermove', e => {
-    const iv = intervalloSotto(e);
+let tipMostrato = null;   // intervallo attualmente nel tip, per non riscrivere il DOM a ogni frame
+function mostraTip(iv) {
+    if (iv?.a === tipMostrato?.a && iv?.vis === tipMostrato?.vis) return;
+    tipMostrato = iv;
     tip.style.display = iv ? 'block' : 'none';
     if (!iv) return;
     tip.className = iv.vis ? 'vis' : '';
     tip.textContent = (iv.vis ? 'Qui è visibile a occhio nudo'
-                              : "Clicca qui per vedere il passaggio sopra l'orizzonte di KSC")
+                              : "Qui passa sopra l'orizzonte di KSC")
                       + ' (' + hhmm(iv.a) + '–' + hhmm(iv.b) + ' UTC)';
     const w = tip.offsetWidth, bw = barra.clientWidth;
     tip.style.left = Math.max(w / 2, Math.min(bw - w / 2, iv.x)) + 'px';
+}
+// --> Precedenza mouse per ora.
+let mouseSopra = false;
+function tipAuto(t) {
+    if (!mouseSopra) mostraTip(inMoto ? intervalloA(t, 0) : null);
+}
+slider.addEventListener('pointermove', e => {
+    mouseSopra = true;
+    mostraTip(intervalloSotto(e));
 });
-slider.addEventListener('pointerleave', () => tip.style.display = 'none');
+slider.addEventListener('pointerleave', () => {
+    mouseSopra = false;
+    tipAuto(t);
+});
 let xDown = null;
 slider.addEventListener('pointerdown', e => xDown = e.clientX);
 slider.addEventListener('click', e => {
@@ -433,12 +445,14 @@ function aggiorna(t) {
     ora.textContent = new Date(t0 + t * 1000).toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
     stato.textContent = vis ? 'visibile a occhio nudo da KSC' : su ? "sopra l'orizzonte di KSC" : '';
     stato.style.color = vis ? '#33dd66' : '';
+    tipAuto(t);
 }
 
 let t = 0, inMoto = false, ultimo = 0;
 function setInMoto(v) {
     inMoto = v;
     btnPlay.innerHTML = v ? '&#10074;&#10074;' : '&#9654;';
+    tipAuto(t);
 }
 btnPlay.addEventListener('click', () => {
     if (!inMoto && t >= durata) aggiorna(t = 0);
