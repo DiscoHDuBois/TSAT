@@ -31,6 +31,13 @@ jobs:
 
       - name: Installa le dipendenze Python
         run: pip install -r requirements.txt
+      
+      - name: Ripristina il TLE dell'ultima run
+        uses: actions/cache@v6
+        with:
+          path: tle_*.txt
+          key: tle-${{ github.run_id }}
+          restore-keys: tle-
 
       - name: Calcola la timeline (orbit3d.txt)
         run: python3 astro.py --no-plot
