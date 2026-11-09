@@ -238,6 +238,17 @@ function interp(arr, t, out) {
 }
 const dentro = (intervalli, t) => intervalli.some(([a, b]) => t >= a && t <= b);
 
+// Stesso modello di LightListener (beyond): penombra conta come illuminata
+const ALFA_OMBRA = THREE.MathUtils.degToRad(0.2641);   // semiapertura del cono, valore di beyond
+const pO = new THREE.Vector3(), sO = new THREE.Vector3();
+function inOmbra(p, s) {
+    const d = -p.dot(s);
+    const r = R / Math.cos(ALFA_OMBRA) - d * Math.tan(ALFA_OMBRA);
+    return d > 0 && p.lengthSq() - d * d <= r * r;
+}
+// Vettori propri: non tocca sunDir, condiviso con lo shader
+const inOmbraA = tm => inOmbra(interp(sat, tm, pO), interp(sole, tm, sO));
+
 const nLat = 90, nLon = 180, pos = [], uv = [], idx = [];
 for (let i = 0; i <= nLat; i++) {
     const lat = Math.PI * (i / nLat - 0.5);
@@ -262,7 +273,6 @@ function loadTex(src) {
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     return t;
 }
-// aggiorna() modifica subito vettore condiviso da shader e cilindro
 const sunDir = new THREE.Vector3().fromArray(sole[0]);
 const dayMap = loadTex(tex);
 scene.add(new THREE.Mesh(earthGeo, new THREE.ShaderMaterial({
@@ -340,14 +350,6 @@ const linkLines = addWithGhost(opts => {
 });
 
 const lim = Math.max(R, ...sat.map(p => Math.hypot(...p))) * 1.05;
-
-const shadowStart = 0.05 * R, shadowLen = lim * 3;
-const shadow = new THREE.Mesh(
-    new THREE.CylinderGeometry(R, R, shadowLen, 96, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0x223366, transparent: true, opacity: 0.3,
-                                  side: THREE.DoubleSide, depthWrite: false }));
-scene.add(shadow);
-const asseY = new THREE.Vector3(0, 1, 0);
 
 camera.position.set(...sat[0]).setLength(lim / Math.tan(THREE.MathUtils.degToRad(35 / 2)) * 1.1);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -428,8 +430,6 @@ function aggiorna(t) {
     setOrbita(t);
 
     interp(sole, t, sunDir);
-    shadow.quaternion.setFromUnitVectors(asseY, tmp.copy(sunDir).negate());
-    shadow.position.copy(sunDir).multiplyScalar(-(shadowStart + shadowLen / 2));
 
     const su = dentro(sopra, t), vis = su && dentro(visibile, t);
     for (const l of linkLines) {
