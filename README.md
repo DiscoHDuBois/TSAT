@@ -172,4 +172,4 @@ Se cambi satellite, il file del TLE salvato prende il nuovo nome in automatico (
 
 ## Licenza
 
-MIT[`LICENSE`](LICENSE).
+[MIT](LICENSE)
