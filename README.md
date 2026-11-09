@@ -32,7 +32,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 
    Passando il mouse sulla curva Doppler o sull'elevazione, un marker arancione mostra lo stesso istante sul grafico polare e sulla mappa, dove in arancione c'è anche la traccia al suolo del passaggio.
 5. **Esporta una timeline di 24 ore** in `orbit3d.txt`: posizione del satellite (ITRF cartesiano, km) e direzione del Sole ogni 60 s, più gli intervalli in cui il satellite è sopra l'orizzonte di KSC o visibile a occhio nudo.
-6. **C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte e orbita, renderizzate in WebGL con three.js e animate lungo la timeline.
+6. **C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte e orbita (blu in ombra), renderizzate in WebGL con three.js e animate lungo la timeline.
 
 ## Come funziona
 
@@ -66,13 +66,15 @@ Nel render 3D l'occlusione dietro la Terra è gestita dal depth buffer della GPU
 
 La direzione del Sole segue la timeline. Uno shader mescola la texture diurna e quella notturna in base al prodotto scalare tra la normale alla superficie e la direzione del Sole, con una sfumatura di circa ±6° attorno al terminatore (crepuscolo). La texture notturna va messa in `images/terra_noc.jpg`, equirettangolare e orientata come `terra2.jpg`. Se il file manca, il lato notte usa la texture diurna scurita.
 
-L'ombra della Terra non è disegnata, per non coprire la scena e il lato notte. La pagina la calcola con la funzione `inOmbra`, è il modello di `LightListener` di beyond, che `astro.py` usa per stabilire l'illuminazione. Il modello è un cono d'ombra (umbra) in direzione anti-Sole, con semiapertura α ≈ 0.264°. Un punto a distanza `d` dietro il centro della Terra, lungo l'asse anti-Sole, è in ombra se la sua distanza dall'asse è al massimo:
+Per non coprire scena e lato notte: si vede bianco dove il satellite è illuminato e blu dove è in ombra. La pagina calcola l'ombra con la funzione `inOmbra`, (modello di `LightListener` di beyond) -> `astro.py` la usa per stabilire l'illuminazione. Un punto a distanza `d` dietro il centro della Terra è in ombra se la sua distanza dall'asse è al massimo:
 
 ```
-r = R / cos α − d · tan α
+r = R / cos α − d · tan α (con α circa ~ 0.264°)
 ```
 
-La penombra conta come illuminata. Tutto è in ITRF: la Terra resta ferma e il Sole le gira attorno in un giorno, quindi terminatore e ombra ruotano durante l'animazione (circa 23° in un periodo orbitale).
+La penombra conta come illuminata. Tutto è in ITRF: la Terra resta ferma e il Sole le gira attorno in un giorno, quindi terminatore e ombra ruotano durante l'animazione (circa 23° in un periodo).
+
+L'orbita viene ricostruita a ogni aggiornamento. Per ogni campione `inOmbra` decide il colore, se il colore cambia tra due campioni consecutivi, l'istante di entrata o uscita dall'ombra si trova per bisezione.
 
 ### Timeline
 
@@ -100,7 +102,7 @@ python3 astro.py --freq 437.800     # oppure 437.8
 
 - Python 3 con `beyond`, `numpy` e `matplotlib`:
   ```
-  pip install -r requirements.txt
+  pip install -r requirements.txt 
   ```
 - `clang++` con supporto C++17
 - Connessione internet, per il TLE e per caricare three.js dalla CDN
@@ -118,7 +120,7 @@ Dopo aver installato i pacchetti di sistema:
 
 I pacchetti tkinter (`python3-tkinter`, `python3-tk`, `tk`) servono a matplotlib per aprire le finestre dei grafici.
 
-`beyond` non è nei repository delle distribuzioni. Con venv:
+`beyond` *non* è nei repository delle distribuzioni -> venv:
 
 ```
 python3 -m venv .venv
@@ -170,4 +172,4 @@ Se cambi satellite, il file del TLE salvato prende il nuovo nome in automatico (
 
 ## Licenza
 
-Distribuito con licenza MIT. Vedi il file [`LICENSE`](LICENSE).
+MIT.[`LICENSE`](LICENSE).
