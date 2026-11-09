@@ -13,7 +13,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 **Demo live (Per ora solo del render 3D):** <https://discohdubois.github.io/TSAT/> (rigenerata ogni 6 ore, vedi [GitHub Pages](#github-pages)).
 
 <p align="center">
-  <img src="images/screen3.png" alt="Porzione Notturna" width="600">
+  <img src="images/screen4.png" alt="Porzione Notturna" width="600">
 </p>
 
 <p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
@@ -32,7 +32,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 
    Passando il mouse sulla curva Doppler o sull'elevazione, un marker arancione mostra lo stesso istante sul grafico polare e sulla mappa, dove in arancione c'è anche la traccia al suolo del passaggio.
 5. **Esporta una timeline di 24 ore** in `orbit3d.txt`: posizione del satellite (ITRF cartesiano, km) e direzione del Sole ogni 60 s, più gli intervalli in cui il satellite è sopra l'orizzonte di KSC o visibile a occhio nudo.
-6. **C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte, cilindro d'ombra e orbita, renderizzate in WebGL con three.js e animate lungo la timeline.
+6. **C++** legge `orbit3d.txt` e genera `render3d.html`: una Terra con texture, terminatore giorno/notte e orbita, renderizzate in WebGL con three.js e animate lungo la timeline.
 
 ## Come funziona
 
@@ -66,7 +66,13 @@ Nel render 3D l'occlusione dietro la Terra è gestita dal depth buffer della GPU
 
 La direzione del Sole segue la timeline. Uno shader mescola la texture diurna e quella notturna in base al prodotto scalare tra la normale alla superficie e la direzione del Sole, con una sfumatura di circa ±6° attorno al terminatore (crepuscolo). La texture notturna va messa in `images/terra_noc.jpg`, equirettangolare e orientata come `terra2.jpg`. Se il file manca, il lato notte usa la texture diurna scurita.
 
-L'ombra della Terra è un cilindro semitrasparente di raggio R orientato in direzione anti-Sole. Tutto è in ITRF: la Terra resta ferma e il Sole le gira attorno in un giorno, quindi terminatore e cilindro ruotano durante l'animazione (circa 23° in un periodo orbitale).
+L'ombra della Terra non è disegnata, per non coprire la scena e il lato notte. La pagina la calcola con la funzione `inOmbra`, è il modello di `LightListener` di beyond, che `astro.py` usa per stabilire l'illuminazione. Il modello è un cono d'ombra (umbra) in direzione anti-Sole, con semiapertura α ≈ 0.264°. Un punto a distanza `d` dietro il centro della Terra, lungo l'asse anti-Sole, è in ombra se la sua distanza dall'asse è al massimo:
+
+```
+r = R / cos α − d · tan α
+```
+
+La penombra conta come illuminata. Tutto è in ITRF: la Terra resta ferma e il Sole le gira attorno in un giorno, quindi terminatore e ombra ruotano durante l'animazione (circa 23° in un periodo orbitale).
 
 ### Timeline
 
