@@ -313,18 +313,40 @@ function addWithGhost(make) {
 }
 const resolution = new THREE.Vector2(innerWidth, innerHeight);
 
-// Geometria ricostruita per ogni upd
+// Geometria ricostruita
 let orbitGeo = new LineGeometry();
 const orbitLines = addWithGhost(opts => new Line2(orbitGeo, new LineMaterial({
-    color: 'white', linewidth: opts.depthTest === false ? 1 : 2, dashed: true, dashSize: 150, gapSize: 250,
-    resolution, ...opts })));
+    color: 'white', vertexColors: true, linewidth: opts.depthTest === false ? 1 : 2, dashed: true,
+    dashSize: 150, gapSize: 250, resolution, ...opts })));
+const BIANCO = new THREE.Color('white').toArray(), BLU = new THREE.Color(0x4466aa).toArray();
 const tmp = new THREE.Vector3();
 function setOrbita(t) {
-    const pts = [...interp(sat, t, tmp).toArray()];
-    for (let i = Math.floor(t / passo) + 1; i * passo < t + periodo && i < sat.length; i++) pts.push(...sat[i]);
-    pts.push(...interp(sat, t + periodo, tmp).toArray());
+    const tempi = [t];
+    for (let i = Math.floor(t / passo) + 1; i * passo < t + periodo && i < sat.length; i++) tempi.push(i * passo);
+    tempi.push(t + periodo);
+    const pts = [], cols = [];
+    let tPrec, ombraPrec;
+    for (const tm of tempi) {
+        const ombra = inOmbraA(tm);
+        if (tPrec !== undefined && ombra !== ombraPrec) {
+            let a = tPrec, b = tm;
+            for (let k = 0; k < 16; k++) {
+                const m = (a + b) / 2;
+                if (inOmbraA(m) === ombraPrec) a = m;
+                else b = m;
+            }
+            const q = interp(sat, (a + b) / 2, tmp).toArray();
+            pts.push(...q, ...q);
+            cols.push(...(ombraPrec ? BLU : BIANCO), ...(ombra ? BLU : BIANCO));
+        }
+        pts.push(...interp(sat, tm, tmp).toArray());
+        cols.push(...(ombra ? BLU : BIANCO));
+        tPrec = tm;
+        ombraPrec = ombra;
+    }
     const g = new LineGeometry();
     g.setPositions(pts);
+    g.setColors(cols);
     for (const l of orbitLines) l.geometry = g;
     orbitLines[0].computeLineDistances();
     orbitGeo.dispose();
