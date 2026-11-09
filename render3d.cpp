@@ -10,6 +10,7 @@ static const double R_TERRA = 6378.137;
 static const std::string ORBIT_IN = "orbit3d.txt";
 static const std::string IMG = "images/terra2.jpg";
 static const std::string IMG_NOTTE = "images/terra_noc.jpg";
+static const std::string LOGO = "images/light.svg";
 static const std::string OUT = "render3d.html";
 
 struct Vec3 { double x, y, z; };
@@ -130,7 +131,7 @@ static void writeArray(std::ostream& f, const Intervalli& v)
 }
 
 static void writeRender3D(const std::string& path, const std::string& img, const std::string& imgNotte,
-                          const Timeline& tl)
+                          const std::string& logo, const Timeline& tl)
 {
     std::ofstream f(path);
     f.setf(std::ios::fixed);
@@ -141,7 +142,9 @@ static void writeRender3D(const std::string& path, const std::string& img, const
 body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; color: white; }
 #legend { position: absolute; top: 12px; right: 12px; padding: 8px 12px; border: 1px solid #666; background: rgba(0,0,0,.7); font-size: 14px; line-height: 1.6; }
 #legend span { display: inline-block; width: 22px; margin-right: 6px; text-align: center; }
-#hint { position: absolute; top: 12px; left: 12px; font-size: 12px; color: #888; }
+#intesta { position: absolute; top: 12px; left: 12px; pointer-events: none; }
+#logo { display: block; width: 180px; margin-bottom: 8px; }
+#hint { font-size: 12px; color: #888; }
 #controlli { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px;
              padding: 15px 18px; border: 1px solid #666; background: rgba(0,0,0,.7); font-size: 14px; }
 #controlli button, #controlli select { height: 28px; background: #222; color: white; border: 1px solid #666; border-radius: 4px; font-size: 14px; cursor: pointer; }
@@ -174,7 +177,10 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 <div><span style='color:#999'>&#9473;</span>Sopra l'orizzonte di KSC</div>
 <div><span style='color:#33dd66'>&#9473;</span>Visibile a occhio nudo</div>
 </div>
-<div id='hint'>Trascina -> ruotare, Rotella -> zoom</div>
+<div id='intesta'>)HTML";
+    if (!logo.empty())
+        f << "<img id='logo' alt='T-SAT' src='data:image/svg+xml;base64," << base64(readFile(logo)) << "'>";
+    f << R"HTML(<div id='hint'>Trascina -> ruotare, Rotella -> zoom</div></div>
 <div id='controlli'>
 <button id='play' title='Play / Pausa'>&#9654;</button>
 <button id='stop' title='Stop: torna all&rsquo;inizio'>&#9632;</button>
@@ -516,7 +522,9 @@ int main()
         Timeline tl = readTimeline(ORBIT_IN);
         std::string imgNotte = std::ifstream(IMG_NOTTE) ? IMG_NOTTE : "";
         if (imgNotte.empty()) std::cout << IMG_NOTTE << " non trovato, lato notte = texture diurna scurita\n";
-        writeRender3D(OUT, IMG, imgNotte, tl);
+        std::string logo = std::ifstream(LOGO) ? LOGO : "";
+        if (logo.empty()) std::cout << LOGO << " non trovato, render senza logo\n";
+        writeRender3D(OUT, IMG, imgNotte, logo, tl);
         std::cout << "Scritto " << OUT << " (" << tl.sat.size() << " campioni, " << tl.sopra.size()
                   << " passaggi sopra l'orizzonte)\n";
     } catch (const std::exception& e) {

@@ -13,7 +13,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
 **Demo live (Per ora solo del render 3D):** <https://discohdubois.github.io/TSAT/> (rigenerata ogni 6 ore, vedi [GitHub Pages](#github-pages)).
 
 <p align="center">
-  <img src="images/screen4.png" alt="Porzione Notturna" width="600">
+  <img src="images/screen5.png" alt="Porzione Notturna" width="600">
 </p>
 
 <p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
