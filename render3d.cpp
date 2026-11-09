@@ -170,7 +170,7 @@ body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; 
 <div><span>&middot;&middot;&middot;</span>Orbita (1 periodo in avanti)</div>
 <div><span style='color:red'>&#9679;</span>)HTML" << tl.name << R"HTML(</div>
 <div><span style='color:yellow'>&#9679;</span>KSC</div>
-<div><span style='color:#4466aa'>&#9608;</span>Ombra della Terra</div>
+<div><span style='color:#4466aa'>&middot;&middot;&middot;</span>Orbita in ombra</div>
 <div><span style='color:#999'>&#9473;</span>Sopra l'orizzonte di KSC</div>
 <div><span style='color:#33dd66'>&#9473;</span>Visibile a occhio nudo</div>
 </div>
