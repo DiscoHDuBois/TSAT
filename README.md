@@ -16,7 +16,7 @@ Traccia un satellite (di default la ISS, NORAD 25544) a partire dal suo TLE. Il 
   <img src="images/screen5.png" alt="Porzione Notturna" width="600">
 </p>
 
-<p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
+<p align="center"><em>Il render 3D generato da <code>make run</code>: orbita della ISS (bianco luce, blu ombra), posizione attuale (rosso) e Kennedy Space Center (giallo).</em></p>
 
 ## Cosa fa
 
