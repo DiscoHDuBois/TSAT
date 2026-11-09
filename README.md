@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/log.png" alt="T-SAT" width="380">
+  <img src="images/log2.png" alt="T-SAT" width="380">
 </p>
 
 
